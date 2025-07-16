@@ -11,6 +11,6 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 class Config:
     SQLALCHEMY_DATABASE_URI = (
-        f"mysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
