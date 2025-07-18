@@ -1,75 +1,128 @@
 import React, { useState, useEffect } from 'react';
+import { Form, Button, Row, Col, Card, Table } from 'react-bootstrap';
 import axios from 'axios';
+import { BsHouseFill, BsFunnelFill } from 'react-icons/bs';
 
 const FiltroActividad = () => {
+  const [fechaRegistro, setFechaRegistro] = useState('');
+  const [tipoAsistencia, setTipoAsistencia] = useState('');
   const [tiposActividad, setTiposActividad] = useState([]);
-  const [idTipoFiltro, setIdTipoFiltro] = useState('');
-  const [resultados, setResultados] = useState([]);
+  const [registros, setRegistros] = useState([]);
 
   useEffect(() => {
+    // Cargar tipos de actividad
     axios.get('http://localhost:5000/actividades/tipoActividad')
-      .then(res => setTiposActividad(res.data))
-      .catch(err => console.error('Error al cargar tipos:', err));
+      .then((res) => setTiposActividad(res.data))
+      .catch((err) => console.error('Error al cargar tipos:', err));
   }, []);
 
   const handleBuscar = () => {
-    axios.get(`http://localhost:5000/actividades/filter?id_tipo_actividad=${idTipoFiltro}`)
-      .then(res => setResultados(res.data))
-      .catch(err => alert('Error al filtrar resultados.'));
+    axios.get('http://localhost:5000/actividades/filter', {
+      params: {
+        fecha: fechaRegistro,
+        tipo: tipoAsistencia,
+      },
+    })
+      .then((res) => setRegistros(res.data))
+      .catch((err) => console.error('Error al filtrar registros:', err));
   };
 
   return (
-    <div className="mt-4">
-      <h5 className="fw-bold mb-3">Filtrar Asistencias</h5>
-      
-      <div className="d-flex align-items-end gap-3 mb-3">
-        <div className="flex-grow-1">
-          <label className="form-label">Tipo de Actividad</label>
-          <select
-            className="form-select"
-            value={idTipoFiltro}
-            onChange={e => setIdTipoFiltro(e.target.value)}
-          >
-            <option value="">Todas</option>
-            {tiposActividad.map(tipo => (
-              <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
-            ))}
-          </select>
-        </div>
+    <div className="container mt-4">
+      <Card>
+        <Card.Header className="d-flex justify-content-between align-items-center bg-primary text-white rounded-top">
+          <div>
+            <BsFunnelFill className="me-2" />
+            Filtros de búsqueda
+          </div>
+          <Button variant="outline-light" className="d-flex align-items-center rounded-pill px-3 py-1" style={{ fontSize: '14px' }}>
+            <BsHouseFill className="me-2" />
+            Asignar
+          </Button>
+        </Card.Header>
+        <Card.Body>
+          <Row className="mb-3">
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Fecha de registro</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={fechaRegistro}
+                  onChange={(e) => setFechaRegistro(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Tipo de asistencia</Form.Label>
+                <Form.Select
+                  value={tipoAsistencia}
+                  onChange={(e) => setTipoAsistencia(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {tiposActividad && tiposActividad.map((tipo) => (
+                    <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={4} className="d-flex align-items-end">
+              <Button variant="primary" onClick={handleBuscar}>Buscar asistencia</Button>
+            </Col>
+          </Row>
 
-        <button className="btn btn-success" onClick={handleBuscar}>
-          Buscar
-        </button>
-      </div>
+          <div className="mb-3 d-flex justify-content-between align-items-center">
+            <Button variant="success">Nuevo registro</Button>
+            <div className="d-flex align-items-center">
+              <span className="me-2">Mostrar</span>
+              <Form.Select style={{ width: '80px' }}>
+                <option>10</option>
+                <option>25</option>
+                <option>50</option>
+              </Form.Select>
+              <span className="ms-2">registros</span>
+            </div>
+          </div>
 
-      {resultados.length > 0 && (
-        <table className="table table-bordered table-striped mt-3">
-          <thead className="table-light">
-            <tr>
-              <th>ID Persona</th>
-              <th>Tipo Actividad</th>
-              <th>Fecha</th>
-              <th>Hora</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resultados.map((registro, index) => (
-              <tr key={index}>
-                <td>{registro.id_persona}</td>
-                <td>{registro.nombre_actividad}</td>
-                <td>{registro.fecha}</td>
-                <td>{registro.hora}</td>
+          <Table bordered hover>
+            <thead className="table-primary">
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Fecha y Hora</th>
+                <th>Detalle</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {registros.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="text-center">Ningún dato disponible en esta tabla</td>
+                </tr>
+              ) : (
+                registros.map((registro, idx) => (
+                  <tr key={idx}>
+                    <td>{registro.fecha}</td>
+                    <td>{registro.tipo}</td>
+                    <td>{registro.fecha_hora}</td>
+                    <td>{registro.detalle}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
 
-      {resultados.length === 0 && (
-        <p className="text-muted">No hay resultados aún.</p>
-      )}
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            <Button variant="outline-primary">Excel</Button>
+            <div>
+              <Button variant="light" className="me-2">{'<'}</Button>
+              <Button variant="light">{'>'}</Button>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
     </div>
   );
 };
 
 export default FiltroActividad;
+
