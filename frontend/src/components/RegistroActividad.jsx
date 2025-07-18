@@ -1,104 +1,104 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import {
+  Button,
+  Form,
+  Row,
+  Col
+} from "react-bootstrap";
+import { FaCheck, FaCalendarAlt, FaClock } from "react-icons/fa";
 
 const RegistroActividad = () => {
-  const [tiposActividad, setTiposActividad] = useState([]);
-  const [formData, setFormData] = useState({
-    fecha_hora: '',
-    id_tipo_actividad: '',
-    detalle: ''
-  });
-  const [message, setMessage] = useState('');
+  const [tipoActividad, setTipoActividad] = useState([]);
+  const [idTipoActividad, setIdTipoActividad] = useState("");
+  const [detalle, setDetalle] = useState("");
 
   useEffect(() => {
-    axios.get('http://localhost:5000/actividades/tipoActividad')
-      .then(response => setTiposActividad(response.data))
-      .catch(error => console.error('Error cargando tipos:', error));
+    axios.get("http://127.0.0.1:5000/actividades/tipoActividad")
+      .then((response) => {
+        setTipoActividad(response.data);
+      })
+      .catch((error) => {
+        console.error("Error fetching tipos de actividad", error);
+      });
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = {
-      ...formData,
-      id_persona: 1,           // Placeholder or replace as needed
-      id_usuario: 1,           // Placeholder or replace as needed
-      id_tipo_registro: 1      // Placeholder or replace as needed
+    const body = {
+      id_persona: 1,
+      id_usuario: 1,
+      id_tipo_actividad: idTipoActividad,
+      detalle: detalle,
     };
 
-    axios.post('http://localhost:5000/actividades/create', payload)
-      .then(() => setMessage('✅ Registro guardado'))
-      .catch(() => setMessage('❌ Error al guardar'));
+    try {
+      const response = await axios.post("http://127.0.0.1:5000/actividades/create", body);
+      alert("Registro exitoso");
+      setIdTipoActividad("");
+      setDetalle("");
+    } catch (error) {
+      alert("Error al registrar asistencia");
+    }
   };
 
   return (
-    <div className="container d-flex justify-content-center align-items-center vh-100" style={{ backgroundColor: '#f5f8fc' }}>
-      <div className="card shadow p-4 rounded-4" style={{ width: '100%', maxWidth: '600px' }}>
-        <h4 className="fw-bold text-dark mb-4">Asistencia - nuevo registro</h4>
+    <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
+      <div className="p-4 rounded shadow bg-white" style={{ maxWidth: "600px", width: "100%" }}>
+        <h4 className="mb-4 fw-bold">Asistencia - nuevo registro</h4>
 
-        <form onSubmit={handleSubmit}>
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <label className="form-label">Fecha de asistencia</label>
-              <input
-                type="date"
-                name="fecha"
-                className="form-control rounded-3"
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label">Hora</label>
-              <input
-                type="time"
-                name="hora"
-                className="form-control rounded-3"
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
+        <Form onSubmit={handleSubmit}>
+          <Row className="mb-3">
+            <Form.Group as={Col} controlId="fecha">
+              <Form.Label>Fecha de asistencia</Form.Label>
+              <div className="d-flex align-items-center border rounded p-2">
+                <Form.Control type="date" className="border-0 shadow-none" />
+                <FaCalendarAlt className="ms-2 text-success" />
+              </div>
+            </Form.Group>
 
-          <div className="mb-3">
-            <label className="form-label">Tipo de asistencia:</label>
-            <select
-              name="id_tipo_actividad"
-              className="form-select rounded-3"
-              value={formData.id_tipo_actividad}
-              onChange={handleChange}
-              required
+            <Form.Group as={Col} controlId="hora">
+              <Form.Label>Hora</Form.Label>
+              <div className="d-flex align-items-center border rounded p-2">
+                <Form.Control type="time" className="border-0 shadow-none" />
+                <FaCheck className="ms-2 text-success" />
+              </div>
+            </Form.Group>
+          </Row>
+
+          <Form.Group className="mb-3" controlId="tipoActividad">
+            <Form.Label>Tipo de asistencia:</Form.Label>
+            <Form.Select
+              value={idTipoActividad}
+              onChange={(e) => setIdTipoActividad(e.target.value)}
             >
               <option value="">Seleccione uno</option>
-              {tiposActividad.map(tipo => (
+              {tipoActividad.map((tipo) => (
                 <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
               ))}
-            </select>
-          </div>
+            </Form.Select>
+          </Form.Group>
 
-          <div className="mb-3">
-            <label className="form-label">Detalle</label>
-            <textarea
-              name="detalle"
-              className="form-control rounded-3"
-              rows="3"
-              onChange={handleChange}
-            />
-          </div>
+          <Form.Group className="mb-4" controlId="detalle">
+            <Form.Label>Detalle</Form.Label>
+            <div className="d-flex align-items-center border rounded p-2">
+              <Form.Control
+                as="textarea"
+                rows={2}
+                className="border-0 shadow-none"
+                value={detalle}
+                onChange={(e) => setDetalle(e.target.value)}
+              />
+              <FaCheck className="ms-2 text-success" />
+            </div>
+          </Form.Group>
 
-          <div className="d-flex justify-content-end gap-3">
-            <button type="button" className="btn btn-secondary px-4">Cancelar</button>
-            <button type="submit" className="btn btn-primary px-4">Guardar</button>
+          <div className="d-flex justify-content-end gap-2">
+            <Button variant="secondary">Cancelar</Button>
+            <Button variant="primary" type="submit">Guardar</Button>
           </div>
-
-          {message && <div className="alert alert-info mt-3 text-center">{message}</div>}
-        </form>
+        </Form>
       </div>
     </div>
   );
