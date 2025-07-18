@@ -1,107 +1,107 @@
-import React, { useState, useEffect } from "react";
-import { Form, Button, Row, Col } from "react-bootstrap";
-import { FaCheck, FaCalendarAlt, FaClock } from "react-icons/fa";
-import "./RegistroActividad.css";
+import React, { useEffect, useState } from 'react';
+import { Button, Card, Form } from 'react-bootstrap';
+import axios from 'axios';
 
 const RegistroActividad = () => {
-  const [fecha, setFecha] = useState("");
-  const [hora, setHora] = useState("");
-  const [tipoAsistencia, setTipoAsistencia] = useState("");
-  const [detalle, setDetalle] = useState("");
-  const [tiposDeAsistencia, setTiposDeAsistencia] = useState([]);
+  const [fecha, setFecha] = useState('');
+  const [hora, setHora] = useState('');
+  const [tipoAsistencia, setTipoAsistencia] = useState('');
+  const [detalle, setDetalle] = useState('');
+  const [tipos, setTipos] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/actividades/tipoActividad")
-      .then((response) => response.json())
-      .then((data) => setTiposDeAsistencia(data))
-      .catch((error) => console.error("Error fetching tipos:", error));
+    axios.get('http://localhost:5000/actividades/tipoActividad')
+      .then(res => setTipos(res.data))
+      .catch(err => console.error(err));
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const actividad = {
-      fecha,
-      hora,
+    const data = {
+      id_persona: 1,
+      id_usuario: 1,
       id_tipo_actividad: tipoAsistencia,
-      detalle,
+      fecha_hora: `${fecha} ${hora}`,
+      id_tipo_registro: 1,
+      detalle
     };
-    console.log("Actividad enviada:", actividad);
-    // Aquí conectarás con el backend más adelante
+
+    try {
+      await axios.post('http://localhost:5000/actividades/create', data);
+      alert('Asistencia registrada exitosamente');
+    } catch (error) {
+      alert('Error al registrar asistencia');
+    }
   };
 
+  const today = new Date();
+  const defaultFecha = today.toISOString().split('T')[0];
+
   return (
-    <div className="registro-wrapper">
-      <div className="registro-card">
-        <h4 className="registro-title">Asistencia - nuevo registro</h4>
-        <Form onSubmit={handleSubmit}>
-          <Row>
-            <Col>
-              <Form.Label className="registro-label">Fecha de asistencia</Form.Label>
-              <div className="registro-input-icon">
+    <div className="d-flex justify-content-center align-items-center mt-4">
+      <Card className="shadow-sm border-0" style={{ width: '40rem', borderRadius: '12px' }}>
+        <Card.Body>
+          <Card.Title className="fs-4 fw-bold mb-4 text-center">Asistencia - nuevo registro</Card.Title>
+          <Form onSubmit={handleSubmit}>
+            <div className="d-flex gap-3 mb-3">
+              <Form.Group style={{ flex: 1 }}>
+                <Form.Label className="text-muted fw-semibold">Fecha de asistencia</Form.Label>
                 <Form.Control
                   type="date"
                   value={fecha}
+                  defaultValue={defaultFecha}
                   onChange={(e) => setFecha(e.target.value)}
+                  className="border-success"
                   required
                 />
-                <FaCalendarAlt className="registro-icon" />
-                <FaCheck className="registro-check" />
-              </div>
-            </Col>
-            <Col>
-              <Form.Label className="registro-label">Hora</Form.Label>
-              <div className="registro-input-icon">
+              </Form.Group>
+              <Form.Group style={{ flex: 1 }}>
+                <Form.Label className="text-muted fw-semibold">Hora</Form.Label>
                 <Form.Control
                   type="time"
                   value={hora}
                   onChange={(e) => setHora(e.target.value)}
+                  className="border-success"
                   required
                 />
-                <FaClock className="registro-icon" />
-                <FaCheck className="registro-check" />
-              </div>
-            </Col>
-          </Row>
+              </Form.Group>
+            </div>
 
-          <Form.Group className="mt-3">
-            <Form.Label className="registro-label">Tipo de asistencia:</Form.Label>
-            <Form.Select
-              value={tipoAsistencia}
-              onChange={(e) => setTipoAsistencia(e.target.value)}
-              required
-            >
-              <option value="">Seleccione uno</option>
-              {tiposDeAsistencia.map((tipo) => (
-                <option key={tipo.id} value={tipo.id}>
-                  {tipo.nombre}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label className="text-muted fw-semibold">Tipo de asistencia:</Form.Label>
+              <Form.Select
+                value={tipoAsistencia}
+                onChange={(e) => setTipoAsistencia(e.target.value)}
+                className="border-success"
+                required
+              >
+                <option value="">Seleccione uno</option>
+                {tipos.map(tipo => (
+                  <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
 
-          <Form.Group className="mt-3">
-            <Form.Label className="registro-label">Detalle</Form.Label>
-            <div className="registro-input-icon">
+            <Form.Group className="mb-4">
+              <Form.Label className="text-muted fw-semibold">Detalle</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={2}
                 value={detalle}
                 onChange={(e) => setDetalle(e.target.value)}
+                className="border-success"
               />
-              <FaCheck className="registro-check" />
-            </div>
-          </Form.Group>
+            </Form.Group>
 
-          <div className="registro-buttons">
-            <Button variant="secondary" type="button">
-              Cancelar
-            </Button>
-            <Button variant="primary" type="submit">
-              Guardar
-            </Button>
-          </div>
-        </Form>
-      </div>
+            <div className="d-flex justify-content-center gap-3">
+              <Button variant="secondary" className="px-4" type="button">Cancelar</Button>
+              <Button style={{ backgroundColor: '#9896f0', border: 'none' }} type="submit">
+                Guardar
+              </Button>
+            </div>
+          </Form>
+        </Card.Body>
+      </Card>
     </div>
   );
 };
