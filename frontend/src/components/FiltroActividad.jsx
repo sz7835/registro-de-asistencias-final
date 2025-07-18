@@ -1,143 +1,114 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Col, Container, Form, Row, Table } from 'react-bootstrap';
 import axios from 'axios';
+import { Button, Card, Form, Table } from 'react-bootstrap';
+import { FaHome } from 'react-icons/fa';
 
 const FiltroActividad = () => {
   const [fecha, setFecha] = useState('');
-  const [tipoActividad, setTipoActividad] = useState('Todos');
-  const [tiposActividad, setTiposActividad] = useState([]);
+  const [tipoAsistencia, setTipoAsistencia] = useState('');
+  const [tipos, setTipos] = useState([]);
   const [resultados, setResultados] = useState([]);
+  const [cantidadRegistros, setCantidadRegistros] = useState(10);
 
-  const obtenerTiposActividad = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/actividades/tipoActividad');
-      setTiposActividad(response.data);
-    } catch (error) {
-      console.error('Error al obtener los tipos de actividad:', error);
-    }
-  };
+  useEffect(() => {
+    axios.get('http://localhost:5000/actividades/tipoActividad')
+      .then(res => setTipos(res.data))
+      .catch(err => console.error(err));
+  }, []);
 
   const handleBuscar = async () => {
     try {
-      const payload = {};
-      if (fecha) payload.fecha = fecha;
-      if (tipoActividad !== 'Todos') payload.id_tipo_actividad = tipoActividad;
-
       const response = await axios.get('http://localhost:5000/actividades/filter', {
-        params: payload,
+        params: {
+          fecha,
+          id_tipo_actividad: tipoAsistencia
+        }
       });
-
       setResultados(response.data);
     } catch (error) {
       console.error('Error al buscar actividades:', error);
-      setResultados([]);
+      alert('Error al buscar actividades');
     }
   };
 
-  useEffect(() => {
-    obtenerTiposActividad();
-  }, []);
-
   return (
-    <Container className="my-4">
-      <Card>
-        <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
-          <strong>Filtros de búsqueda</strong>
-          <Button variant="outline-light" className="rounded-circle px-3 py-1">
-            <i className="bi bi-house-door-fill"></i> Asignar
-          </Button>
-        </Card.Header>
+    <div className="d-flex justify-content-center mt-4">
+      <Card className="shadow-sm border-0" style={{ width: '80rem', borderRadius: '12px' }}>
+        <div className="d-flex justify-content-between align-items-center px-4 py-2" style={{ backgroundColor: '#dce8ff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+          <h5 className="fw-bold mb-0 text-primary">Filtros de búsqueda</h5>
+          <Button variant="light" className="shadow-sm rounded-circle"><FaHome /></Button>
+        </div>
         <Card.Body>
-          <Row className="mb-3">
-            <Col md={4}>
-              <Form.Label>Fecha de registro</Form.Label>
+          <div className="d-flex gap-3 mb-3">
+            <Form.Group style={{ flex: 1 }}>
+              <Form.Label className="text-muted fw-semibold">Fecha</Form.Label>
               <Form.Control
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
+                className="border-success"
               />
-            </Col>
-            <Col md={4}>
-              <Form.Label>Tipo de asistencia:</Form.Label>
+            </Form.Group>
+            <Form.Group style={{ flex: 2 }}>
+              <Form.Label className="text-muted fw-semibold">Tipo de asistencia</Form.Label>
               <Form.Select
-                value={tipoActividad}
-                onChange={(e) => setTipoActividad(e.target.value)}
+                value={tipoAsistencia}
+                onChange={(e) => setTipoAsistencia(e.target.value)}
+                className="border-success"
               >
-                <option value="Todos">Todos</option>
-                {tiposActividad.map((tipo) => (
-                  <option key={tipo.id} value={tipo.id}>
-                    {tipo.nombre}
-                  </option>
+                <option value="">Seleccione uno</option>
+                {tipos.map(tipo => (
+                  <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
                 ))}
               </Form.Select>
-            </Col>
-            <Col md={4} className="d-flex align-items-end">
-              <Button variant="primary" onClick={handleBuscar}>
-                Buscar asistencia
-              </Button>
-            </Col>
-          </Row>
+            </Form.Group>
+          </div>
 
-          <Row className="mb-3">
-            <Col md={2}>
-              <Button variant="success">Nuevo registro</Button>
-            </Col>
-            <Col md={2}>
-              <Form.Select>
-                <option>10</option>
-                <option>25</option>
-                <option>50</option>
-              </Form.Select>
-            </Col>
-          </Row>
+          <Button variant="primary" onClick={handleBuscar} className="mb-4 px-4" style={{ backgroundColor: '#9896f0', border: 'none' }}>
+            Buscar asistencia
+          </Button>
 
-          <Table striped bordered hover responsive>
-            <thead className="table-primary">
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
+          <Table striped bordered hover responsive size="sm">
+            <thead>
+              <tr className="text-center">
+                <th>#</th>
+                <th>Tipo de Asistencia</th>
                 <th>Fecha y Hora</th>
                 <th>Detalle</th>
               </tr>
             </thead>
             <tbody>
-              {resultados.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="text-center">
-                    Ningún dato disponible en esta tabla
-                  </td>
+              {resultados.slice(0, cantidadRegistros).map((res, index) => (
+                <tr key={res.id} className="text-center">
+                  <td>{index + 1}</td>
+                  <td>{res.nombre_tipo_actividad}</td>
+                  <td>{res.fecha_hora}</td>
+                  <td>{res.detalle || '—'}</td>
                 </tr>
-              ) : (
-                resultados.map((actividad, index) => (
-                  <tr key={index}>
-                    <td>{actividad.fecha_hora?.split('T')[0] || '--'}</td>
-                    <td>{actividad.nombre_tipo || '--'}</td>
-                    <td>{actividad.fecha_hora || '--'}</td>
-                    <td>--</td>
-                  </tr>
-                ))
+              ))}
+              {resultados.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="text-center text-muted">No se encontraron resultados</td>
+                </tr>
               )}
             </tbody>
           </Table>
 
-          <div className="d-flex justify-content-between align-items-center mt-3">
-            <span>
-              Mostrando registros del 0 al {resultados.length} de un total de {resultados.length}
-            </span>
-            <div>
-              <Button variant="outline-primary" className="me-2">
-                &lt;
-              </Button>
-              <Button variant="outline-primary">&gt;</Button>
-            </div>
-          </div>
-
-          <div className="mt-3">
-            <Button variant="primary">Excel</Button>
+          <div className="d-flex justify-content-between align-items-center">
+            <Button variant="success" disabled>Exportar a Excel</Button>
+            <Form.Select
+              style={{ width: '10rem' }}
+              value={cantidadRegistros}
+              onChange={(e) => setCantidadRegistros(Number(e.target.value))}
+            >
+              <option value={10}>Mostrar 10 registros</option>
+              <option value={25}>Mostrar 25 registros</option>
+              <option value={50}>Mostrar 50 registros</option>
+            </Form.Select>
           </div>
         </Card.Body>
       </Card>
-    </Container>
+    </div>
   );
 };
 
