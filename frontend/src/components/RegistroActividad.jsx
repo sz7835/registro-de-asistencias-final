@@ -9,27 +9,33 @@ const RegistroActividad = () => {
   const [detalle, setDetalle] = useState('');
   const [tipos, setTipos] = useState([]);
 
+  // Load activity types
   useEffect(() => {
     axios.get('http://localhost:5000/actividades/tipoActividad')
       .then(res => setTipos(res.data))
-      .catch(err => console.error(err));
+      .catch(err => console.error('Error al cargar tipos de actividad:', err));
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = {
-      id_persona: 1,
-      id_usuario: 1,
-      id_tipo_actividad: tipoAsistencia,
-      fecha_hora: `${fecha} ${hora}`,
-      id_tipo_registro: 1,
-      detalle
-    };
 
     try {
+      // Convert hora string like "04:55 PM" to "16:55:00"
+      const formattedHora = new Date(`1970-01-01T${hora}`).toTimeString().split(' ')[0];
+
+      const data = {
+        id_persona: 1,
+        id_usuario: 1,
+        id_tipo_actividad: parseInt(tipoAsistencia),
+        fecha_hora: `${fecha} ${formattedHora}`,
+        id_tipo_registro: 1,
+        detalle
+      };
+
       await axios.post('http://localhost:5000/actividades/create', data);
       alert('Asistencia registrada exitosamente');
     } catch (error) {
+      console.error('Error al registrar asistencia:', error);
       alert('Error al registrar asistencia');
     }
   };
@@ -107,3 +113,4 @@ const RegistroActividad = () => {
 };
 
 export default RegistroActividad;
+

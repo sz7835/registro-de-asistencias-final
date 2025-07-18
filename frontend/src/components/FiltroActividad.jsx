@@ -1,90 +1,97 @@
-import React, { useState, useEffect } from 'react';
-import { Form, Button, Row, Col, Card, Table } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Button, Card, Col, Container, Form, Row, Table } from 'react-bootstrap';
 import axios from 'axios';
-import { BsHouseFill, BsFunnelFill } from 'react-icons/bs';
 
 const FiltroActividad = () => {
-  const [fechaRegistro, setFechaRegistro] = useState('');
-  const [tipoAsistencia, setTipoAsistencia] = useState('');
+  const [fecha, setFecha] = useState('');
+  const [tipoActividad, setTipoActividad] = useState('Todos');
   const [tiposActividad, setTiposActividad] = useState([]);
-  const [registros, setRegistros] = useState([]);
+  const [resultados, setResultados] = useState([]);
 
-  useEffect(() => {
-    // Cargar tipos de actividad
-    axios.get('http://localhost:5000/actividades/tipoActividad')
-      .then((res) => setTiposActividad(res.data))
-      .catch((err) => console.error('Error al cargar tipos:', err));
-  }, []);
-
-  const handleBuscar = () => {
-    axios.get('http://localhost:5000/actividades/filter', {
-      params: {
-        fecha: fechaRegistro,
-        tipo: tipoAsistencia,
-      },
-    })
-      .then((res) => setRegistros(res.data))
-      .catch((err) => console.error('Error al filtrar registros:', err));
+  const obtenerTiposActividad = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/actividades/tipoActividad');
+      setTiposActividad(response.data);
+    } catch (error) {
+      console.error('Error al obtener los tipos de actividad:', error);
+    }
   };
 
+  const handleBuscar = async () => {
+    try {
+      const payload = {};
+      if (fecha) payload.fecha = fecha;
+      if (tipoActividad !== 'Todos') payload.id_tipo_actividad = tipoActividad;
+
+      const response = await axios.get('http://localhost:5000/actividades/filter', {
+        params: payload,
+      });
+
+      setResultados(response.data);
+    } catch (error) {
+      console.error('Error al buscar actividades:', error);
+      setResultados([]);
+    }
+  };
+
+  useEffect(() => {
+    obtenerTiposActividad();
+  }, []);
+
   return (
-    <div className="container mt-4">
+    <Container className="my-4">
       <Card>
-        <Card.Header className="d-flex justify-content-between align-items-center bg-primary text-white rounded-top">
-          <div>
-            <BsFunnelFill className="me-2" />
-            Filtros de búsqueda
-          </div>
-          <Button variant="outline-light" className="d-flex align-items-center rounded-pill px-3 py-1" style={{ fontSize: '14px' }}>
-            <BsHouseFill className="me-2" />
-            Asignar
+        <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
+          <strong>Filtros de búsqueda</strong>
+          <Button variant="outline-light" className="rounded-circle px-3 py-1">
+            <i className="bi bi-house-door-fill"></i> Asignar
           </Button>
         </Card.Header>
         <Card.Body>
           <Row className="mb-3">
             <Col md={4}>
-              <Form.Group>
-                <Form.Label>Fecha de registro</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={fechaRegistro}
-                  onChange={(e) => setFechaRegistro(e.target.value)}
-                />
-              </Form.Group>
+              <Form.Label>Fecha de registro</Form.Label>
+              <Form.Control
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+              />
             </Col>
             <Col md={4}>
-              <Form.Group>
-                <Form.Label>Tipo de asistencia</Form.Label>
-                <Form.Select
-                  value={tipoAsistencia}
-                  onChange={(e) => setTipoAsistencia(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {tiposActividad && tiposActividad.map((tipo) => (
-                    <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
+              <Form.Label>Tipo de asistencia:</Form.Label>
+              <Form.Select
+                value={tipoActividad}
+                onChange={(e) => setTipoActividad(e.target.value)}
+              >
+                <option value="Todos">Todos</option>
+                {tiposActividad.map((tipo) => (
+                  <option key={tipo.id} value={tipo.id}>
+                    {tipo.nombre}
+                  </option>
+                ))}
+              </Form.Select>
             </Col>
             <Col md={4} className="d-flex align-items-end">
-              <Button variant="primary" onClick={handleBuscar}>Buscar asistencia</Button>
+              <Button variant="primary" onClick={handleBuscar}>
+                Buscar asistencia
+              </Button>
             </Col>
           </Row>
 
-          <div className="mb-3 d-flex justify-content-between align-items-center">
-            <Button variant="success">Nuevo registro</Button>
-            <div className="d-flex align-items-center">
-              <span className="me-2">Mostrar</span>
-              <Form.Select style={{ width: '80px' }}>
+          <Row className="mb-3">
+            <Col md={2}>
+              <Button variant="success">Nuevo registro</Button>
+            </Col>
+            <Col md={2}>
+              <Form.Select>
                 <option>10</option>
                 <option>25</option>
                 <option>50</option>
               </Form.Select>
-              <span className="ms-2">registros</span>
-            </div>
-          </div>
+            </Col>
+          </Row>
 
-          <Table bordered hover>
+          <Table striped bordered hover responsive>
             <thead className="table-primary">
               <tr>
                 <th>Fecha</th>
@@ -94,17 +101,19 @@ const FiltroActividad = () => {
               </tr>
             </thead>
             <tbody>
-              {registros.length === 0 ? (
+              {resultados.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center">Ningún dato disponible en esta tabla</td>
+                  <td colSpan="4" className="text-center">
+                    Ningún dato disponible en esta tabla
+                  </td>
                 </tr>
               ) : (
-                registros.map((registro, idx) => (
-                  <tr key={idx}>
-                    <td>{registro.fecha}</td>
-                    <td>{registro.tipo}</td>
-                    <td>{registro.fecha_hora}</td>
-                    <td>{registro.detalle}</td>
+                resultados.map((actividad, index) => (
+                  <tr key={index}>
+                    <td>{actividad.fecha_hora?.split('T')[0] || '--'}</td>
+                    <td>{actividad.nombre_tipo || '--'}</td>
+                    <td>{actividad.fecha_hora || '--'}</td>
+                    <td>--</td>
                   </tr>
                 ))
               )}
@@ -112,17 +121,26 @@ const FiltroActividad = () => {
           </Table>
 
           <div className="d-flex justify-content-between align-items-center mt-3">
-            <Button variant="outline-primary">Excel</Button>
+            <span>
+              Mostrando registros del 0 al {resultados.length} de un total de {resultados.length}
+            </span>
             <div>
-              <Button variant="light" className="me-2">{'<'}</Button>
-              <Button variant="light">{'>'}</Button>
+              <Button variant="outline-primary" className="me-2">
+                &lt;
+              </Button>
+              <Button variant="outline-primary">&gt;</Button>
             </div>
+          </div>
+
+          <div className="mt-3">
+            <Button variant="primary">Excel</Button>
           </div>
         </Card.Body>
       </Card>
-    </div>
+    </Container>
   );
 };
 
 export default FiltroActividad;
+
 
