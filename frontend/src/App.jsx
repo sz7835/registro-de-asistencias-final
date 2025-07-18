@@ -1,78 +1,83 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css'; // Optional: for any custom tweaks
 
 function App() {
-  const [tipos, setTipos] = useState([]);
-  const [idPersona, setIdPersona] = useState('');
-  const [idTipoActividad, setIdTipoActividad] = useState('');
+  const [tiposActividad, setTiposActividad] = useState([]);
+  const [formData, setFormData] = useState({
+    id_persona: '',
+    id_tipo_actividad: ''
+  });
   const [message, setMessage] = useState('');
 
-  // Load activity types from backend
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/actividades/tipoActividad')
-      .then(res => res.json())
-      .then(data => setTipos(data))
-      .catch(err => console.error('Error fetching tipos:', err));
+    axios.get('http://localhost:5000/actividades/tipoActividad')
+      .then(response => setTiposActividad(response.data))
+      .catch(error => console.error('Error al obtener tipos:', error));
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setMessage('');
-
-    const payload = {
-      id_persona: idPersona,
-      id_tipo_actividad: idTipoActividad,
-      id_usuario: 1,
-      id_tipo_registro: 1
-    };
-
-    const res = await fetch('http://127.0.0.1:5000/actividades/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      setMessage('✅ Registro exitoso');
-    } else {
-      setMessage(`❌ Error: ${data.message || 'Algo salió mal'}`);
-    }
+    axios.post('http://localhost:5000/actividades/create', formData)
+      .then(() => setMessage('✅ Actividad registrada exitosamente.'))
+      .catch(() => setMessage('❌ Error al registrar la actividad.'));
   };
 
   return (
-    <div style={{ maxWidth: '500px', margin: '50px auto' }}>
-      <h2>Registrar Actividad</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>ID Persona:</label><br />
-          <input
-            type="number"
-            value={idPersona}
-            onChange={(e) => setIdPersona(e.target.value)}
-            required
-          />
-        </div>
+    <div className="container vh-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: '#f0f4f8' }}>
+      <div className="card shadow-lg p-4 rounded-4 w-100" style={{ maxWidth: '480px', backgroundColor: '#ffffff' }}>
+        <h3 className="text-center mb-4 text-primary fw-bold">Registrar Actividad</h3>
 
-        <div>
-          <label>Tipo de Actividad:</label><br />
-          <select
-            value={idTipoActividad}
-            onChange={(e) => setIdTipoActividad(e.target.value)}
-            required
-          >
-            <option value="">Seleccione una opción</option>
-            {tipos.map((tipo) => (
-              <option key={tipo.id} value={tipo.id}>
-                {tipo.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="id_persona" className="form-label">ID Persona:</label>
+            <input
+              type="number"
+              className="form-control rounded-3"
+              id="id_persona"
+              name="id_persona"
+              value={formData.id_persona}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-        <button type="submit" style={{ marginTop: '15px' }}>Registrar</button>
-      </form>
+          <div className="mb-3">
+            <label htmlFor="id_tipo_actividad" className="form-label">Tipo de Actividad:</label>
+            <select
+              className="form-select rounded-3"
+              id="id_tipo_actividad"
+              name="id_tipo_actividad"
+              value={formData.id_tipo_actividad}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Seleccione una opción</option>
+              {tiposActividad.map(tipo => (
+                <option key={tipo.id} value={tipo.id}>
+                  {tipo.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      {message && <p style={{ marginTop: '20px' }}>{message}</p>}
+          <button type="submit" className="btn btn-primary w-100 rounded-3">
+            Registrar
+          </button>
+        </form>
+
+        {message && (
+          <div className="alert alert-info mt-3 text-center">{message}</div>
+        )}
+      </div>
     </div>
   );
 }
