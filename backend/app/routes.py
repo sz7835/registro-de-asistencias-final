@@ -1,70 +1,83 @@
-from flask import Blueprint, request, jsonify
-from app.models import db
-from sqlalchemy import text
+# app/routes.py
+
+from flask import Blueprint, jsonify, request
+from .models import db, RegistroActividad, TipoActividad
 from datetime import datetime
 
 main = Blueprint('main', __name__)
 
-# Ruta de prueba
+# ✅ GET /ping - health check
 @main.route('/ping', methods=['GET'])
 def ping():
-    return jsonify({"message": "pong"}), 200
+    return jsonify({'message': 'pong'}), 200
 
-# Ruta 1: Obtener tipos de actividad
+# ✅ GET /actividades/tipoActividad
 @main.route('/actividades/tipoActividad', methods=['GET'])
 def get_tipo_actividad():
-    try:
-        result = db.session.execute(text("SELECT id, nombre FROM out_tipo_actividad"))
-        actividades = [{"id": row[0], "nombre": row[1]} for row in result]
-        return jsonify(actividades), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    tipos = TipoActividad.query.all()
+    result = [{'id': t.id, 'nombre': t.nombre} for t in tipos]
+    return jsonify(result), 200
 
-# Ruta 2: Registrar una actividad
+# ✅ POST /actividades/create
 @main.route('/actividades/create', methods=['POST'])
 def create_actividad():
     data = request.get_json()
 
-    id_persona = data.get("id_persona")
-    id_tipo_actividad = data.get("id_tipo_actividad")
-    id_usuario = data.get("id_usuario")
-    id_tipo_registro = data.get("id_tipo_registro", 1)
-    fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    id_persona = data.get('id_persona')
+    id_tipo_actividad = data.get('id_tipo_actividad')
 
-    if not id_persona or not id_tipo_actividad or not id_usuario:
-        return jsonify({"error": "Faltan campos requeridos"}), 400
+    # Validation
+    if not id_persona:
+        return jsonify({'error': 'Falta el campo: id_persona'}), 422
+    if not id_tipo_actividad:
+        return jsonify({'error': 'Falta el campo: id_tipo_actividad'}), 422
 
-    try:
-        # Verifica si ya existe un registro para esa persona y actividad
-        query = text("""
-            SELECT COUNT(*) FROM out_registro_actividad 
-            WHERE id_persona = :id_persona AND id_tipo_actividad = :id_tipo_actividad
-        """)
-        result = db.session.execute(query, {
-            "id_persona": id_persona,
-            "id_tipo_actividad": id_tipo_actividad
-        }).scalar()
+    # Duplicate check
+    existing = RegistroActividad.query.filter_by(
+        id_persona=id_persona,
+        id_tipo_actividad=id_tipo_actividad
+    ).first()
 
-        if result > 0:
-            return jsonify({"message": "La persona ya ha registrado esta actividad"}), 409
+    if existing:
+        return jsonify({'message': 'La persona ya ha registrado esta actividad'}), 409
 
-        # Inserta el nuevo registro
-        insert = text("""
-            INSERT INTO out_registro_actividad 
-            (id_persona, id_tipo_actividad, id_usuario, fecha_hora, id_tipo_registro)
-            VALUES (:id_persona, :id_tipo_actividad, :id_usuario, :fecha_hora, :id_tipo_registro)
-        """)
-        db.session.execute(insert, {
-            "id_persona": id_persona,
-            "id_tipo_actividad": id_tipo_actividad,
-            "id_usuario": id_usuario,
-            "fecha_hora": fecha_hora,
-            "id_tipo_registro": id_tipo_registro
+    # Save new activity
+    nueva_actividad = RegistroActividad(
+        id_persona=id_persona,
+        id_tipo_actividad=id_tipo_actividad,
+        id_usuario=1,
+        fecha_hora=datetime.now(),
+        id_tipo_registro=1
+    )
+    db.session.add(nueva_actividad)
+    db.session.commit()
+
+    return jsonify({'message': 'Actividad registrada exitosamente'}), 201
+
+# ✅ NEW: GET /actividades/filter
+@main.route('/actividades/filter', methods=['GET'])
+def filter_actividades():
+    id_persona = request.args.get('id_persona', type=int)
+    id_tipo_actividad = request.args.get('id_tipo_actividad', type=int)
+
+    query = RegistroActividad.query
+
+    if id_persona:
+        query = query.filter_by(id_persona=id_persona)
+    if id_tipo_actividad:
+        query = query.filter_by(id_tipo_actividad=id_tipo_actividad)
+
+    resultados = query.all()
+
+    response = []
+    for r in resultados:
+        response.append({
+            'id': r.id,
+            'id_persona': r.id_persona,
+            'id_tipo_actividad': r.id_tipo_actividad,
+            'id_usuario': r.id_usuario,
+            'fecha_hora': r.fecha_hora.strftime('%Y-%m-%d %H:%M:%S'),
+            'id_tipo_registro': r.id_tipo_registro
         })
-        db.session.commit()
 
-        return jsonify({"message": "Actividad registrada exitosamente"}), 201
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+    return jsonify(response), 200
