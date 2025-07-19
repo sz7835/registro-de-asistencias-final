@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from .models import db, TipoActividad, RegistroActividad
+from .models import db, RegistroActividad, TipoActividad
 from datetime import datetime
 
 main = Blueprint("main", __name__)
@@ -8,13 +8,11 @@ main = Blueprint("main", __name__)
 def ping():
     return jsonify({"message": "pong"}), 200
 
-
 @main.route("/actividades/tipoActividad", methods=["GET"])
 def obtener_tipos_actividad():
     tipos = TipoActividad.query.all()
     resultados = [{"id": tipo.id, "nombre": tipo.nombre} for tipo in tipos]
     return jsonify(resultados), 200
-
 
 @main.route("/actividades/create", methods=["POST"])
 def crear_actividad():
@@ -23,7 +21,6 @@ def crear_actividad():
     if not data or "id_persona" not in data or "id_tipo_actividad" not in data:
         return jsonify({"error": "Faltan campos obligatorios"}), 400
 
-    # Verifica si la persona ya tiene un registro con este tipo de actividad
     existente = RegistroActividad.query.filter_by(
         id_persona=data["id_persona"],
         id_tipo_actividad=data["id_tipo_actividad"]
@@ -36,7 +33,7 @@ def crear_actividad():
         id_persona=data["id_persona"],
         id_tipo_actividad=data["id_tipo_actividad"],
         id_usuario=1,
-        fecha_hora=datetime.now(),  # ✅ Fixed the null error
+        fecha_hora=datetime.now(),
         id_tipo_registro=1
     )
 
@@ -45,48 +42,38 @@ def crear_actividad():
 
     return jsonify({"message": "Registro creado exitosamente"}), 201
 
-
 @main.route("/actividades/filter", methods=["GET"])
 def filtrar_actividades():
+    fecha_str = request.args.get("fecha")
+    id_tipo_actividad = request.args.get("id_tipo_actividad")
+    id_usuario = request.args.get("id_usuario")
+
+    if not fecha_str or not id_tipo_actividad or not id_usuario:
+        return jsonify({"error": "Faltan parámetros requeridos"}), 400
+
     try:
-        id_actividad = request.args.get("idActividad", type=int)
-        id_persona = request.args.get("idPersona", type=int)
-        registro_str = request.args.get("registro")
+        fecha_inicio = datetime.strptime(fecha_str, "%Y-%m-%d")
+        fecha_fin = fecha_inicio.replace(hour=23, minute=59, second=59)
+    except ValueError:
+        return jsonify({"error": "Formato de fecha inválido. Usa YYYY-MM-DD"}), 400
 
-        if not id_actividad or not id_persona or not registro_str:
-            return jsonify({"error": "Faltan parámetros requeridos"}), 400
+    query = db.session.query(RegistroActividad, TipoActividad).join(
+        TipoActividad, RegistroActividad.id_tipo_actividad == TipoActividad.id
+    ).filter(
+        RegistroActividad.id_usuario == int(id_usuario),
+        RegistroActividad.id_tipo_actividad == int(id_tipo_actividad),
+        RegistroActividad.fecha_hora >= fecha_inicio,
+        RegistroActividad.fecha_hora <= fecha_fin
+    )
 
-        # Parse fecha string (yyyy-MM-dd) into datetime range for the day
-        try:
-            fecha_inicio = datetime.strptime(registro_str, "%Y-%m-%d")
-            fecha_fin = fecha_inicio.replace(hour=23, minute=59, second=59)
-        except ValueError:
-            return jsonify({"error": "Formato de fecha inválido, se espera yyyy-MM-dd"}), 400
+    resultados = query.all()
 
-        # Start query
-        query = db.session.query(RegistroActividad, TipoActividad).join(
-            TipoActividad, RegistroActividad.id_tipo_actividad == TipoActividad.id
-        ).filter(
-            RegistroActividad.id_persona == id_persona,
-            RegistroActividad.fecha_hora >= fecha_inicio,
-            RegistroActividad.fecha_hora <= fecha_fin
-        )
+    response = [{
+        "id": r.id,
+        "id_persona": r.id_persona,
+        "id_tipo_actividad": r.id_tipo_actividad,
+        "nombre_actividad": t.nombre,
+        "fecha_hora": r.fecha_hora.isoformat()
+    } for r, t in resultados]
 
-        # Apply activity type filter unless idActividad is 9
-        if id_actividad != 9:
-            query = query.filter(RegistroActividad.id_tipo_actividad == id_actividad)
-
-        resultados = query.all()
-
-        response = [{
-            "id": r.id,
-            "id_persona": r.id_persona,
-            "id_tipo_actividad": r.id_tipo_actividad,
-            "nombre_actividad": t.nombre,
-            "fecha_hora": r.fecha_hora.isoformat()
-        } for r, t in resultados]
-
-        return jsonify(response), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify(response), 200
