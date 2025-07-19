@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
-from sqlalchemy import text
-from .models import db
+from .models import db, TipoActividad, RegistroActividad
+from datetime import datetime
 
 main = Blueprint('main', __name__)
 
@@ -9,87 +9,75 @@ def ping():
     return 'pong'
 
 @main.route('/actividades/tipoActividad', methods=['GET'])
-def obtener_tipos_actividad():
-    try:
-        result = db.session.execute(text("SELECT id, nombre FROM out_tipo_actividad"))
-        tipos = [{"id": row[0], "nombre": row[1]} for row in result]
-        return jsonify(tipos)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+def obtener_tipo_actividades():
+    tipos = TipoActividad.query.all()
+    data = [{'id': tipo.id, 'nombre': tipo.nombre} for tipo in tipos]
+    return jsonify(data)
 
 @main.route('/actividades/create', methods=['POST'])
-def crear_actividad():
+def crear_registro_actividad():
     data = request.get_json()
-    id_persona = data.get("id_persona")
-    id_tipo_actividad = data.get("id_tipo_actividad")
-    id_usuario = data.get("id_usuario")
-    id_tipo_registro = data.get("id_tipo_registro")
-    fecha_hora = data.get("fecha_hora")
 
-    if not all([id_persona, id_tipo_actividad, id_usuario, id_tipo_registro, fecha_hora]):
-        return jsonify({"error": "Faltan campos requeridos"}), 400
+    id_tipo = data.get('idTipoAct')
+    id_persona = data.get('personaId')
+    fecha = data.get('fecha')
+    hora = data.get('hora')
+    id_usuario = data.get('createUser')
 
-    # Verificar duplicado
-    query = text("""
-        SELECT COUNT(*) FROM out_registro_actividad
-        WHERE id_persona = :id_persona AND id_tipo_actividad = :id_tipo_actividad
-    """)
-    result = db.session.execute(query, {
-        "id_persona": id_persona,
-        "id_tipo_actividad": id_tipo_actividad
-    }).scalar()
+    if id_tipo is None or id_persona is None or not fecha or not hora or id_usuario is None:
+        return jsonify({'error': 'Faltan campos requeridos'}), 422
 
-    if result > 0:
-        return jsonify({"error": "La persona ya ha registrado esta actividad"}), 409
+    try:
+        fecha_hora = datetime.strptime(f"{fecha} {hora}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return jsonify({'error': 'Formato de fecha u hora inválido'}), 422
 
-    insert = text("""
-        INSERT INTO out_registro_actividad (id_persona, id_tipo_actividad, id_usuario, fecha_hora, id_tipo_registro)
-        VALUES (:id_persona, :id_tipo_actividad, :id_usuario, :fecha_hora, :id_tipo_registro)
-    """)
-    db.session.execute(insert, {
-        "id_persona": id_persona,
-        "id_tipo_actividad": id_tipo_actividad,
-        "id_usuario": id_usuario,
-        "fecha_hora": fecha_hora,
-        "id_tipo_registro": id_tipo_registro
-    })
+    existente = RegistroActividad.query.filter_by(
+        id_persona=id_persona,
+        id_tipo_actividad=id_tipo
+    ).first()
+
+    if existente:
+        return jsonify({'error': 'La persona ya tiene registrada esta actividad'}), 409
+
+    nuevo = RegistroActividad(
+        id_persona=id_persona,
+        id_tipo_actividad=id_tipo,
+        fecha_hora=fecha_hora,
+        id_usuario=id_usuario,
+        id_tipo_registro=1
+    )
+
+    db.session.add(nuevo)
     db.session.commit()
 
-    return jsonify({"mensaje": "Registro de asistencia exitoso"})
+    return jsonify({'mensaje': 'Registro creado exitosamente'})
 
 @main.route('/actividades/filter', methods=['GET'])
 def filtrar_actividades():
     fecha = request.args.get('fecha')
-    id_tipo_actividad = request.args.get('id_tipo_actividad')
-    id_usuario = request.args.get('id_usuario')
+    tipo = request.args.get('tipo')
 
-    if not fecha:
-        return jsonify({"error": "El parámetro 'fecha' es obligatorio"}), 400
+    query = RegistroActividad.query
 
-    query = """
-        SELECT id, id_persona, id_tipo_actividad, id_usuario, fecha_hora, id_tipo_registro
-        FROM out_registro_actividad
-        WHERE DATE(fecha_hora) = :fecha
-    """
-    params = {"fecha": fecha}
+    if fecha:
+        try:
+            fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").date()
+            query = query.filter(db.func.date(RegistroActividad.fecha_hora) == fecha_dt)
+        except ValueError:
+            return jsonify({'error': 'Formato de fecha inválido'}), 422
 
-    if id_tipo_actividad:
-        query += " AND id_tipo_actividad = :id_tipo_actividad"
-        params["id_tipo_actividad"] = id_tipo_actividad
-    if id_usuario:
-        query += " AND id_usuario = :id_usuario"
-        params["id_usuario"] = id_usuario
+    if tipo:
+        query = query.filter_by(id_tipo_actividad=tipo)
 
-    result = db.session.execute(text(query), params)
-    actividades = [
-        {
-            "id": row[0],
-            "id_persona": row[1],
-            "id_tipo_actividad": row[2],
-            "id_usuario": row[3],
-            "fecha_hora": row[4].strftime("%Y-%m-%d %H:%M:%S"),
-            "id_tipo_registro": row[5]
-        }
-        for row in result
-    ]
-    return jsonify(actividades)
+    resultados = query.all()
+    data = [{
+        'id': r.id,
+        'id_persona': r.id_persona,
+        'id_tipo_actividad': r.id_tipo_actividad,
+        'id_usuario': r.id_usuario,
+        'id_tipo_registro': r.id_tipo_registro,
+        'fecha_hora': r.fecha_hora.strftime('%Y-%m-%d %H:%M:%S')
+    } for r in resultados]
+
+    return jsonify(data)
